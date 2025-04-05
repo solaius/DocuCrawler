@@ -52,63 +52,93 @@ class GraniteEmbedder(BaseEmbedder):
         if token_limit is None:
             token_limit = self.token_limit
         
+        # Ensure we're not working with extremely large content
+        if len(content) > 100000:  # 100K character limit as a safety measure
+            print(f"Content is very large ({len(content)} chars), truncating to 100K chars")
+            content = content[:100000]
+        
+        # Remove any potentially problematic characters
+        content = content.replace('\x00', '')
+        
+        # Use a smaller token limit for safety
+        safe_token_limit = min(token_limit, 400)  # Use 400 as a safer limit
+        
         if self.tokenizer is None:
             # Fallback to approximate token counting (assuming ~4 chars per token)
-            approx_tokens = len(content) // 4
-            if approx_tokens <= token_limit:
+            # Use a character-based approach for more reliability
+            char_limit = safe_token_limit * 4  # Approximate 4 chars per token
+            
+            if len(content) <= char_limit:
                 return [content]
             
-            # Split by paragraphs first
+            # Split by paragraphs first for more natural chunks
             paragraphs = content.split('\n\n')
             chunks = []
             current_chunk = ""
-            current_tokens = 0
             
             for para in paragraphs:
-                para_tokens = len(para) // 4
-                if current_tokens + para_tokens <= token_limit:
-                    current_chunk += para + '\n\n'
-                    current_tokens += para_tokens
-                else:
+                # If adding this paragraph would exceed the limit
+                if len(current_chunk) + len(para) + 2 > char_limit:  # +2 for newlines
                     if current_chunk:
                         chunks.append(current_chunk.strip())
                     
-                    # If paragraph is too long, split it further
-                    if para_tokens > token_limit:
-                        words = para.split()
+                    # If paragraph itself is too long, split it into sentences
+                    if len(para) > char_limit:
+                        sentences = para.replace('. ', '.\n').split('\n')
                         current_chunk = ""
-                        current_tokens = 0
                         
-                        for word in words:
-                            word_tokens = len(word) // 4 + 1  # +1 for space
-                            if current_tokens + word_tokens <= token_limit:
-                                current_chunk += word + ' '
-                                current_tokens += word_tokens
+                        for sentence in sentences:
+                            if len(current_chunk) + len(sentence) + 1 <= char_limit:  # +1 for space
+                                current_chunk += sentence + ' '
                             else:
-                                chunks.append(current_chunk.strip())
-                                current_chunk = word + ' '
-                                current_tokens = word_tokens
+                                if current_chunk:
+                                    chunks.append(current_chunk.strip())
+                                
+                                # If sentence is still too long, just split by character limit
+                                if len(sentence) > char_limit:
+                                    for i in range(0, len(sentence), char_limit):
+                                        chunks.append(sentence[i:i + char_limit])
+                                    current_chunk = ""
+                                else:
+                                    current_chunk = sentence + ' '
                     else:
-                        current_chunk = para + '\n\n'
-                        current_tokens = para_tokens
+                        current_chunk = para
+                else:
+                    if current_chunk:
+                        current_chunk += '\n\n' + para
+                    else:
+                        current_chunk = para
             
             if current_chunk:
                 chunks.append(current_chunk.strip())
             
+            # Ensure no chunk is empty
+            chunks = [chunk for chunk in chunks if chunk]
+            
+            # If we still have no chunks (unlikely), fall back to simple character chunking
+            if not chunks:
+                chunks = [content[i:i + char_limit] for i in range(0, len(content), char_limit)]
+            
             return chunks
         else:
             # Use the tokenizer for accurate token counting
-            tokens = self.tokenizer.encode(content)
-            
-            if len(tokens) <= token_limit:
-                return [content]
-            
-            chunks = []
-            for i in range(0, len(tokens), token_limit):
-                chunk_tokens = tokens[i:i + token_limit]
-                chunks.append(self.tokenizer.decode(chunk_tokens))
-            
-            return chunks
+            try:
+                tokens = self.tokenizer.encode(content)
+                
+                if len(tokens) <= safe_token_limit:
+                    return [content]
+                
+                chunks = []
+                for i in range(0, len(tokens), safe_token_limit):
+                    chunk_tokens = tokens[i:i + safe_token_limit]
+                    chunks.append(self.tokenizer.decode(chunk_tokens))
+                
+                return chunks
+            except Exception as e:
+                print(f"Error using tokenizer: {e}")
+                # Fall back to character-based chunking
+                char_limit = safe_token_limit * 4
+                return [content[i:i + char_limit] for i in range(0, len(content), char_limit)]
     
     def embed_document(self, content: str) -> Union[List[float], List[List[float]]]:
         """Generate embeddings for a single document.
@@ -148,6 +178,14 @@ class GraniteEmbedder(BaseEmbedder):
             "Content-Type": "application/json"
         }
         
+        # Ensure chunk is not too long (limit to 8000 characters as a safety measure)
+        if len(chunk) > 8000:
+            chunk = chunk[:8000]
+            print(f"Warning: Chunk truncated to 8000 characters")
+        
+        # Remove any potentially problematic characters
+        chunk = chunk.replace('\x00', '')
+        
         for attempt in range(self.max_retries):
             try:
                 payload = {
@@ -155,7 +193,14 @@ class GraniteEmbedder(BaseEmbedder):
                     "input": chunk
                 }
                 
+                print(f"Sending request to {self.api_url} with payload length: {len(chunk)} characters")
                 response = requests.post(self.api_url, headers=headers, json=payload)
+                
+                # Print response status and content for debugging
+                print(f"Response status: {response.status_code}")
+                if response.status_code != 200:
+                    print(f"Error response: {response.text[:500]}")  # Print first 500 chars of error
+                
                 response.raise_for_status()
                 
                 response_data = response.json()
@@ -163,6 +208,7 @@ class GraniteEmbedder(BaseEmbedder):
                 # Check if the response has the expected structure
                 if "data" in response_data and len(response_data["data"]) > 0:
                     if "embedding" in response_data["data"][0]:
+                        print(f"Successfully generated embedding with dimension: {len(response_data['data'][0]['embedding'])}")
                         return response_data["data"][0]["embedding"]
                 
                 print(f"Unexpected response format: {response_data}")
@@ -175,6 +221,11 @@ class GraniteEmbedder(BaseEmbedder):
                     print(f"Retrying in {wait_time} seconds...")
                     import time
                     time.sleep(wait_time)
+                    
+                    # Try with a shorter chunk on retry
+                    if len(chunk) > 1000:
+                        chunk = chunk[:len(chunk)//2]
+                        print(f"Reducing chunk size to {len(chunk)} characters for retry")
         
         raise Exception(f"Failed to generate embedding after {self.max_retries} attempts")
     
