@@ -69,7 +69,8 @@ async def crawl_parallel(urls, output_dir, max_concurrent=10):
                 elif result.success:
                     filename = os.path.join(output_dir, f"{url.split('/')[-2]}.txt")
                     with open(filename, "w", encoding="utf-8") as file:
-                        file.write(result.markdown_v2.raw_markdown)
+                        # Use markdown instead of markdown_v2 (which is deprecated)
+                        file.write(result.markdown.raw_markdown)
                     print(f"Crawled and saved: {url}")
                 else:
                     print(f"Failed to crawl {url}: {result.error_message}")

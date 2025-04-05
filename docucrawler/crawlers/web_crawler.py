@@ -119,7 +119,8 @@ class WebCrawler(BaseCrawler):
                             counter += 1
                         
                         with open(filepath, "w", encoding="utf-8") as file:
-                            file.write(result.markdown_v2.raw_markdown)
+                            # Use markdown instead of markdown_v2 (which is deprecated)
+                            file.write(result.markdown.raw_markdown)
                         
                         saved_files.append(filepath)
                         print(f"Crawled and saved: {url} -> {filepath}")
