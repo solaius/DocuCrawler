@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  docucrawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./docs:/app/docs
+      - ./.env:/app/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: ["--steps", "crawl", "preprocess", "embed"]
+    restart: unless-stopped
