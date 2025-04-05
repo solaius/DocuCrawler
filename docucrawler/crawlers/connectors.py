@@ -167,7 +167,7 @@ class MCPConnector(WebCrawler):
         # Set default configuration for MCP
         default_config = {
             'sitemap_url': 'https://modelcontextprotocol.io/sitemap.xml',
-            'base_url': 'https://modelcontextprotocol.io/introduction',
+            'base_url': 'https://modelcontextprotocol.io/',
             'max_depth': 3,
             'output_dir': 'docs/crawled/mcp',
             'headless': True,
