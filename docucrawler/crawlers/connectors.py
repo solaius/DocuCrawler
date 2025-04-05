@@ -70,8 +70,8 @@ class DoclingConnector(WebCrawler):
         
         # Set default configuration for Docling
         default_config = {
-            'sitemap_url': 'https://ds4sd.github.io/docling/sitemap.xml',
-            'base_url': 'https://ds4sd.github.io/docling/',
+            'sitemap_url': 'https://docling-project.github.io/docling/sitemap.xml',
+            'base_url': 'https://docling-project.github.io/docling/',
             'max_depth': 3,
             'output_dir': 'docs/crawled/docling',
             'headless': True,
@@ -118,8 +118,8 @@ class LlamaStackConnector(WebCrawler):
         
         # Set default configuration for Llama Stack
         default_config = {
-            'sitemap_url': 'https://llama.meta.com/sitemap.xml',
-            'base_url': 'https://llama.meta.com/docs/',
+            'sitemap_url': 'https://llama-stack.readthedocs.io/sitemap.xml',
+            'base_url': 'https://llama-stack.readthedocs.io/en/latest/',
             'max_depth': 3,
             'output_dir': 'docs/crawled/llama-stack',
             'headless': True,
@@ -166,8 +166,8 @@ class MCPConnector(WebCrawler):
         
         # Set default configuration for MCP
         default_config = {
-            'sitemap_url': 'https://access.redhat.com/documentation/en-us/red_hat_build_of_microshift/sitemap.xml',
-            'base_url': 'https://access.redhat.com/documentation/en-us/red_hat_build_of_microshift/',
+            'sitemap_url': 'https://modelcontextprotocol.io/sitemap.xml',
+            'base_url': 'https://modelcontextprotocol.io/introduction',
             'max_depth': 3,
             'output_dir': 'docs/crawled/mcp',
             'headless': True,
