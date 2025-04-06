@@ -26,7 +26,7 @@ load_dotenv()
 
 def setup_directories():
     """Set up the necessary directory structure."""
-    base_dir = 'docs'
+    base_dir = 'data'
     directories = [
         os.path.join(base_dir, 'crawled'),
         os.path.join(base_dir, 'processed'),
@@ -86,8 +86,8 @@ async def run_process_step(sources: Optional[List[str]] = None):
     processor = MarkdownProcessor(processor_config)
     
     for source in sources:
-        input_dir = os.path.join('docs', 'crawled', source)
-        output_dir = os.path.join('docs', 'processed', source)
+        input_dir = os.path.join('data', 'crawled', source)
+        output_dir = os.path.join('data', 'processed', source)
         
         if os.path.exists(input_dir) and os.listdir(input_dir):
             print(f"\n--- Processing {source.upper()} documentation ---")
@@ -123,8 +123,8 @@ async def run_embed_step(sources: Optional[List[str]] = None):
     embedder = GraniteEmbedder(embedder_config)
     
     for source in sources:
-        input_dir = os.path.join('docs', 'processed', source)
-        output_dir = os.path.join('docs', 'embeddings', source)
+        input_dir = os.path.join('data', 'processed', source)
+        output_dir = os.path.join('data', 'embeddings', source)
         
         if os.path.exists(input_dir) and os.listdir(input_dir):
             print(f"\n--- Generating embeddings for {source.upper()} documentation ---")
@@ -145,7 +145,7 @@ async def run_vectordb_step(sources: Optional[List[str]] = None, db_type: str = 
     from docucrawler.vectordb.integration import store_embeddings
     
     for source in sources:
-        input_dir = os.path.join('docs', 'embeddings', source)
+        input_dir = os.path.join('data', 'embeddings', source)
         
         if os.path.exists(input_dir) and os.listdir(input_dir):
             print(f"\n--- Storing embeddings for {source.upper()} documentation in {db_type} ---")
