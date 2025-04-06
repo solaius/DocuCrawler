@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Union, Optional
 import tiktoken
 
 from docucrawler.embedders.base import BaseEmbedder
+from docucrawler.processors.advanced_chunker import AdvancedChunker
 from docucrawler.utils.common import (
     ensure_directory_exists, log_memory_usage, load_json, save_json
 )
@@ -30,6 +31,7 @@ class GraniteEmbedder(BaseEmbedder):
         self.token_limit = config.get('token_limit', 512)
         self.max_concurrent = config.get('max_concurrent', 10)
         self.max_retries = config.get('max_retries', 3)
+        self.use_advanced_chunking = config.get('use_advanced_chunking', True)
         
         # Initialize tokenizer
         self.tokenizer = None
@@ -37,6 +39,18 @@ class GraniteEmbedder(BaseEmbedder):
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
         except Exception as e:
             print(f"Warning: Failed to initialize tokenizer: {e}")
+            
+        # Initialize advanced chunker if enabled
+        if self.use_advanced_chunking:
+            chunker_config = {
+                'max_chunk_size': self.token_limit,
+                'min_chunk_size': self.token_limit // 4,  # 25% of max size
+                'overlap': self.token_limit // 10,  # 10% overlap
+                'respect_sections': True,
+                'respect_paragraphs': True,
+                'respect_sentences': True
+            }
+            self.chunker = AdvancedChunker(chunker_config)
             print("Falling back to approximate token counting.")
     
     def chunk_content(self, content: str, token_limit: Optional[int] = None) -> List[str]:

@@ -19,7 +19,7 @@ from docucrawler.crawlers.connectors import (
     LangChainConnector, DoclingConnector, LlamaStackConnector, MCPConnector
 )
 from docucrawler.processors.markdown_processor import MarkdownProcessor
-from docucrawler.embedders.granite_embedder import GraniteEmbedder
+from docucrawler.embedders.enhanced.granite_embedder import EnhancedGraniteEmbedder
 
 # Load environment variables
 load_dotenv()
@@ -108,11 +108,12 @@ async def run_process_step(sources: Optional[List[str]] = None):
         else:
             print(f"Warning: No documents found for {source}, skipping processing.")
 
-async def run_embed_step(sources: Optional[List[str]] = None):
+async def run_embed_step(sources: Optional[List[str]] = None, advanced_chunking: bool = True):
     """Run the embedding step for specified sources.
     
     Args:
         sources: List of sources to embed (default: all sources)
+        advanced_chunking: Whether to use advanced chunking (default: True)
     """
     if sources is None:
         sources = ['langchain', 'docling', 'llama-stack', 'mcp']
@@ -124,7 +125,8 @@ async def run_embed_step(sources: Optional[List[str]] = None):
         'model_name': os.getenv('GRANITE_EMBEDDINGS_MODEL_NAME'),
         'token_limit': int(os.getenv('EMBEDDINGS_TOKEN_LIMIT', '512')),
         'max_concurrent': 5,  # Lower concurrency for API calls
-        'max_retries': 3
+        'max_retries': 3,
+        'use_advanced_chunking': advanced_chunking  # Use the parameter value
     }
     
     # Validate required configuration
@@ -133,7 +135,7 @@ async def run_embed_step(sources: Optional[List[str]] = None):
         print("Please set GRANITE_EMBEDDINGS_URL, GRANITE_EMBEDDINGS_API, and GRANITE_EMBEDDINGS_MODEL_NAME.")
         return
     
-    embedder = GraniteEmbedder(embedder_config)
+    embedder = EnhancedGraniteEmbedder(embedder_config)
     
     for source in sources:
         input_dir = os.path.join('data', 'processed', source)
@@ -172,7 +174,7 @@ async def run_vectordb_step(sources: Optional[List[str]] = None, db_type: str = 
             print(f"Warning: No embeddings found for {source}, skipping vector database integration")
 
 async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List[str]] = None, 
-                db_type: Optional[str] = None, incremental: bool = True):
+                db_type: Optional[str] = None, incremental: bool = True, advanced_chunking: bool = True):
     """Run the complete pipeline or specific steps for specified sources.
     
     Args:
@@ -180,6 +182,7 @@ async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List
         sources: List of sources to process (default: all sources)
         db_type: Type of vector database to use (default: from environment)
         incremental: Whether to use incremental crawling (default: True)
+        advanced_chunking: Whether to use advanced chunking (default: True)
     """
     if steps is None:
         steps = ['crawl', 'preprocess', 'embed', 'vectordb']
@@ -210,7 +213,7 @@ async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List
     
     if 'embed' in steps:
         print("\n=== Starting Embedding Generation Phase ===")
-        await run_embed_step(sources)
+        await run_embed_step(sources, advanced_chunking)
     
     if 'vectordb' in steps:
         print("\n=== Starting Vector Database Integration Phase ===")
@@ -231,6 +234,10 @@ def parse_arguments():
                         help='Enable incremental crawling (only process changed documents)')
     parser.add_argument('--full', action='store_true',
                         help='Force full crawling (process all documents)')
+    parser.add_argument('--advanced-chunking', action='store_true', default=True,
+                        help='Enable advanced chunking for better semantic coherence')
+    parser.add_argument('--basic-chunking', action='store_true',
+                        help='Use basic chunking instead of advanced chunking')
     
     return parser.parse_args()
 
@@ -241,7 +248,10 @@ def main_cli():
     # If --full is specified, override --incremental
     incremental = args.incremental and not args.full
     
-    asyncio.run(run_pipeline(args.steps, args.sources, args.db_type, incremental))
+    # If --basic-chunking is specified, override --advanced-chunking
+    advanced_chunking = args.advanced_chunking and not args.basic_chunking
+    
+    asyncio.run(run_pipeline(args.steps, args.sources, args.db_type, incremental, advanced_chunking))
 
 if __name__ == "__main__":
     main_cli()
