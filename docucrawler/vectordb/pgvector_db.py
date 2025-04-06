@@ -222,11 +222,12 @@ class PGVectorDB(BaseVectorDB):
                         existing_document.content = content
                         existing_document.doc_metadata = metadata
                         existing_document.embedding = embedding_vector
+                        print(f"Updated existing document '{document_id}' in collection '{collection_name}'")
                     else:
                         # Insert new document
                         session.add(document)
+                        print(f"Inserted new document '{document_id}' into collection '{collection_name}'")
             
-            print(f"Successfully inserted document '{document_id}' into collection '{collection_name}'")
             return True
         except Exception as e:
             print(f"Error inserting document '{document_id}' into collection '{collection_name}': {e}")

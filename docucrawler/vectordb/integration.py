@@ -86,7 +86,6 @@ async def store_embeddings(input_dir: str,
                 
                 if success:
                     stored_ids.append(document_id)
-                    print(f"Stored embedding for document '{document_id}'")
                 else:
                     print(f"Failed to store embedding for document '{document_id}'")
             
