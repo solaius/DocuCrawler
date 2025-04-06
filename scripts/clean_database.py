@@ -14,8 +14,24 @@ def clean_pgvector():
     load_dotenv()
     
     # Get database connection details from environment variables
-    host = os.getenv('PGVECTOR_URL', 'localhost:5432').split(':')[0]
-    port = int(os.getenv('PGVECTOR_URL', 'localhost:5432').split(':')[1]) if ':' in os.getenv('PGVECTOR_URL', 'localhost:5432') else 5432
+    pgvector_url = os.getenv('PGVECTOR_URL', 'localhost:5432')
+    
+    # Handle different URL formats (with or without protocol)
+    if '//' in pgvector_url:
+        # URL with protocol (e.g., http://hostname:port)
+        from urllib.parse import urlparse
+        parsed_url = urlparse(pgvector_url)
+        host = parsed_url.hostname or 'localhost'
+        port = parsed_url.port or 5432
+    elif ':' in pgvector_url:
+        # Simple host:port format
+        parts = pgvector_url.split(':')
+        host = parts[0]
+        port = int(parts[1])
+    else:
+        # Just hostname
+        host = pgvector_url
+        port = 5432
     database = os.getenv('PGVECTOR_DB', 'postgres')
     user = os.getenv('PGVECTOR_USER', 'postgres')
     password = os.getenv('PGVECTOR_PASSWORD', 'postgres')
