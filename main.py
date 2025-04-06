@@ -132,15 +132,54 @@ async def run_embed_step(sources: Optional[List[str]] = None):
         else:
             print(f"Warning: No processed documents found for {source}, skipping embedding.")
 
-async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List[str]] = None):
+async def run_vectordb_step(sources: Optional[List[str]] = None, db_type: str = 'pgvector'):
+    """Run the vector database integration step for specified sources.
+    
+    Args:
+        sources: List of sources to process (default: all sources)
+        db_type: Type of vector database to use
+    """
+    if sources is None:
+        sources = ['langchain', 'docling', 'llama-stack', 'mcp']
+    
+    from docucrawler.vectordb.integration import store_embeddings
+    
+    for source in sources:
+        input_dir = os.path.join('docs', 'embeddings', source)
+        
+        if os.path.exists(input_dir) and os.listdir(input_dir):
+            print(f"\n--- Storing embeddings for {source.upper()} documentation in {db_type} ---")
+            stored_ids = await store_embeddings(
+                input_dir=input_dir,
+                db_type=db_type,
+                collection_name=source
+            )
+            print(f"Stored {len(stored_ids)} documents in {db_type} database")
+        else:
+            print(f"Warning: No embeddings found for {source}, skipping vector database integration")
+
+async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List[str]] = None, db_type: Optional[str] = None):
     """Run the complete pipeline or specific steps for specified sources.
     
     Args:
         steps: List of steps to run (default: all steps)
         sources: List of sources to process (default: all sources)
+        db_type: Type of vector database to use (default: from environment)
     """
     if steps is None:
-        steps = ['crawl', 'preprocess', 'embed']
+        steps = ['crawl', 'preprocess', 'embed', 'vectordb']
+    
+    # Determine vector database type
+    if db_type is None:
+        # Check environment variables to determine which vector database to use
+        if os.getenv('PGVECTOR_URL'):
+            db_type = 'pgvector'
+        elif os.getenv('ELASTICSEARCH_URL'):
+            db_type = 'elasticsearch'
+        elif os.getenv('WEAVIATE_URL'):
+            db_type = 'weaviate'
+        else:
+            db_type = 'pgvector'  # Default to pgvector
     
     # Set up directories
     setup_directories()
@@ -158,22 +197,28 @@ async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List
         print("\n=== Starting Embedding Generation Phase ===")
         await run_embed_step(sources)
     
+    if 'vectordb' in steps:
+        print("\n=== Starting Vector Database Integration Phase ===")
+        await run_vectordb_step(sources, db_type)
+    
     print("\n=== Pipeline Completed Successfully ===")
 
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='DocuCrawler - Documentation Aggregation System')
-    parser.add_argument('--steps', nargs='+', choices=['crawl', 'preprocess', 'embed'], 
+    parser.add_argument('--steps', nargs='+', choices=['crawl', 'preprocess', 'embed', 'vectordb'], 
                         help='Specify which steps to run (default: all steps)')
     parser.add_argument('--sources', nargs='+', choices=['langchain', 'docling', 'llama-stack', 'mcp'],
                         help='Specify which documentation sources to process (default: all sources)')
+    parser.add_argument('--db-type', choices=['pgvector', 'elasticsearch', 'weaviate'],
+                        help='Specify which vector database to use (default: determined from environment)')
     
     return parser.parse_args()
 
 def main_cli():
     """Entry point for the console script."""
     args = parse_arguments()
-    asyncio.run(run_pipeline(args.steps, args.sources))
+    asyncio.run(run_pipeline(args.steps, args.sources, args.db_type))
 
 if __name__ == "__main__":
     main_cli()
