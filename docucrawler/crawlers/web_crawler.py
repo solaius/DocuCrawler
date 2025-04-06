@@ -5,12 +5,14 @@ Web crawler implementation using crawl4ai.
 import os
 import asyncio
 import requests
-from typing import List, Dict, Any, Optional
+import hashlib
+from typing import List, Dict, Any, Optional, Tuple
 from xml.etree import ElementTree
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 
 from docucrawler.crawlers.base import BaseCrawler
 from docucrawler.utils.common import ensure_directory_exists, log_memory_usage
+from docucrawler.utils.document_tracker import DocumentTracker
 
 
 class WebCrawler(BaseCrawler):
@@ -32,6 +34,15 @@ class WebCrawler(BaseCrawler):
             cache_mode=CacheMode.BYPASS if not config.get('use_cache', False) else CacheMode.READ_WRITE
         )
         self.max_concurrent = config.get('max_concurrent', 10)
+        self.output_dir = config.get('output_dir', 'data/crawled')
+        self.incremental = config.get('incremental', True)
+        self.source_name = config.get('source_name', os.path.basename(self.output_dir))
+        
+        # Ensure output directory exists
+        ensure_directory_exists(self.output_dir)
+        
+        # Initialize document tracker
+        self.document_tracker = DocumentTracker()
     
     async def get_urls(self, source_url: str, base_url: Optional[str] = None, 
                       max_depth: int = 3) -> List[str]:
@@ -73,25 +84,81 @@ class WebCrawler(BaseCrawler):
             print(f"Error fetching sitemap: {e}")
             return []
     
-    async def crawl(self, urls: List[str], output_dir: str) -> List[str]:
+    async def crawl(self, urls: List[str], output_dir: str = None) -> List[str]:
         """Crawl the specified URLs and save the content.
         
         Args:
             urls: List of URLs to crawl
-            output_dir: Directory to save crawled content
+            output_dir: Directory to save crawled content (defaults to self.output_dir)
             
         Returns:
             List of paths to saved files
         """
+        if output_dir is None:
+            output_dir = self.output_dir
+            
         ensure_directory_exists(output_dir)
         saved_files = []
+        updated_files = []
+        skipped_files = []
+        
+        # Get the source name from the output directory if not set
+        source_name = self.source_name
+        
+        # Track URLs that need to be crawled
+        urls_to_crawl = []
+        url_to_filename = {}
+        
+        # Check which URLs need to be crawled (if incremental mode is enabled)
+        if self.incremental:
+            print(f"Incremental mode enabled. Checking for changes...")
+            last_crawl_time = self.document_tracker.get_last_crawl_time(source_name)
+            if last_crawl_time:
+                print(f"Last crawl time: {last_crawl_time}")
+            else:
+                print("No previous crawl found. Crawling all URLs.")
+            
+            # First pass: check which URLs need to be crawled
+            for url in urls:
+                # Create a filename based on the URL path
+                url_path = url.rstrip('/').split('/')
+                filename = f"{url_path[-2]}_{url_path[-1]}" if len(url_path) > 1 else url_path[-1]
+                if not filename:
+                    filename = "index"
+                
+                # Ensure filename is valid
+                filename = filename.replace('.', '_').replace('-', '_')
+                url_to_filename[url] = filename
+                
+                # Always crawl in non-incremental mode
+                urls_to_crawl.append(url)
+        else:
+            # Non-incremental mode: crawl all URLs
+            urls_to_crawl = urls
+            for url in urls:
+                # Create a filename based on the URL path
+                url_path = url.rstrip('/').split('/')
+                filename = f"{url_path[-2]}_{url_path[-1]}" if len(url_path) > 1 else url_path[-1]
+                if not filename:
+                    filename = "index"
+                
+                # Ensure filename is valid
+                filename = filename.replace('.', '_').replace('-', '_')
+                url_to_filename[url] = filename
+        
+        # If no URLs to crawl, return early
+        if not urls_to_crawl:
+            print("No URLs need to be crawled.")
+            return saved_files
+        
+        print(f"Crawling {len(urls_to_crawl)} URLs...")
         
         crawler = AsyncWebCrawler(config=self.browser_config)
         await crawler.start()
         
         try:
-            for i in range(0, len(urls), self.max_concurrent):
-                batch = urls[i:i + self.max_concurrent]
+            for i in range(0, len(urls_to_crawl), self.max_concurrent):
+                batch = urls_to_crawl[i:i + self.max_concurrent]
                 tasks = [crawler.arun(url=url, config=self.crawl_config) for url in batch]
                 
                 log_memory_usage(prefix=f"Before batch {i // self.max_concurrent + 1}: ")
@@ -102,29 +169,46 @@ class WebCrawler(BaseCrawler):
                     if isinstance(result, Exception):
                         print(f"Error crawling {url}: {result}")
                     elif result.success:
-                        # Create a filename based on the URL path
-                        url_path = url.rstrip('/').split('/')
-                        filename = f"{url_path[-2]}_{url_path[-1]}" if len(url_path) > 1 else url_path[-1]
-                        if not filename:
-                            filename = "index"
-                        
-                        # Ensure filename is valid
-                        filename = filename.replace('.', '_').replace('-', '_')
+                        # Get the filename for this URL
+                        filename = url_to_filename[url]
                         filepath = os.path.join(output_dir, f"{filename}.md")
                         
-                        # We'll overwrite existing files to avoid creating duplicates with suffixes
-                        # This ensures that re-running the crawler updates existing files rather than creating new ones
+                        # Get the content
+                        content = result.markdown.raw_markdown
                         
-                        with open(filepath, "w", encoding="utf-8") as file:
-                            # Use markdown instead of markdown_v2 (which is deprecated)
-                            file.write(result.markdown.raw_markdown)
+                        # Check if the content has changed
+                        is_new, has_changed = self.document_tracker.update_document(
+                            source=source_name,
+                            document_id=filename,
+                            content=content,
+                            metadata={'url': url, 'title': result.title}
+                        )
                         
-                        saved_files.append(filepath)
-                        print(f"Crawled and saved: {url} -> {filepath}")
+                        if is_new or has_changed:
+                            # Write the content to file
+                            with open(filepath, "w", encoding="utf-8") as file:
+                                file.write(content)
+                            
+                            saved_files.append(filepath)
+                            if is_new:
+                                print(f"Crawled and saved new document: {url} -> {filepath}")
+                            else:
+                                print(f"Crawled and updated document: {url} -> {filepath}")
+                                updated_files.append(filepath)
+                        else:
+                            print(f"Document unchanged, skipping: {url}")
+                            skipped_files.append(url)
                     else:
                         print(f"Failed to crawl {url}: {result.error_message}")
                 
                 log_memory_usage(prefix=f"After batch {i // self.max_concurrent + 1}: ")
+            
+            # Print summary
+            print(f"\nCrawl Summary:")
+            print(f"  New documents: {len(saved_files) - len(updated_files)}")
+            print(f"  Updated documents: {len(updated_files)}")
+            print(f"  Unchanged documents: {len(skipped_files)}")
+            print(f"  Total documents: {len(saved_files) + len(skipped_files)}")
         finally:
             await crawler.close()
         

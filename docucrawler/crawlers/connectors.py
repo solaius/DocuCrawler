@@ -26,8 +26,10 @@ class LangChainConnector(WebCrawler):
             'base_url': 'https://python.langchain.com/docs/',
             'max_depth': 3,
             'output_dir': 'data/crawled/langchain',
+            'source_name': 'langchain',
             'headless': True,
-            'max_concurrent': 10
+            'max_concurrent': 10,
+            'incremental': True
         }
         
         # Merge default config with provided config
@@ -74,8 +76,10 @@ class DoclingConnector(WebCrawler):
             'base_url': 'https://docling-project.github.io/docling/',
             'max_depth': 3,
             'output_dir': 'data/crawled/docling',
+            'source_name': 'docling',
             'headless': True,
-            'max_concurrent': 10
+            'max_concurrent': 10,
+            'incremental': True
         }
         
         # Merge default config with provided config
@@ -122,8 +126,10 @@ class LlamaStackConnector(WebCrawler):
             'base_url': 'https://llama-stack.readthedocs.io/en/latest/',
             'max_depth': 3,
             'output_dir': 'data/crawled/llama-stack',
+            'source_name': 'llama-stack',
             'headless': True,
-            'max_concurrent': 10
+            'max_concurrent': 10,
+            'incremental': True
         }
         
         # Merge default config with provided config
@@ -170,8 +176,10 @@ class MCPConnector(WebCrawler):
             'base_url': 'https://modelcontextprotocol.io/',
             'max_depth': 3,
             'output_dir': 'data/crawled/mcp',
+            'source_name': 'mcp',
             'headless': True,
-            'max_concurrent': 10
+            'max_concurrent': 10,
+            'incremental': True
         }
         
         # Merge default config with provided config

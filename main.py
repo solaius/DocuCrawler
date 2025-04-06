@@ -44,20 +44,33 @@ def setup_directories():
     
     return base_dir
 
-async def run_crawl_step(sources: Optional[List[str]] = None):
+async def run_crawl_step(sources: Optional[List[str]] = None, incremental: bool = True):
     """Run the crawling step for specified sources.
     
     Args:
         sources: List of sources to crawl (default: all sources)
+        incremental: Whether to use incremental crawling (default: True)
     """
     if sources is None:
         sources = ['langchain', 'docling', 'llama-stack', 'mcp']
     
     connectors = {
-        'langchain': LangChainConnector({'output_dir': 'data/crawled/langchain'}),
-        'docling': DoclingConnector({'output_dir': 'data/crawled/docling'}),
-        'llama-stack': LlamaStackConnector({'output_dir': 'data/crawled/llama-stack'}),
-        'mcp': MCPConnector({'output_dir': 'data/crawled/mcp'})
+        'langchain': LangChainConnector({
+            'output_dir': 'data/crawled/langchain',
+            'incremental': incremental
+        }),
+        'docling': DoclingConnector({
+            'output_dir': 'data/crawled/docling',
+            'incremental': incremental
+        }),
+        'llama-stack': LlamaStackConnector({
+            'output_dir': 'data/crawled/llama-stack',
+            'incremental': incremental
+        }),
+        'mcp': MCPConnector({
+            'output_dir': 'data/crawled/mcp',
+            'incremental': incremental
+        })
     }
     
     for source in sources:
@@ -158,13 +171,15 @@ async def run_vectordb_step(sources: Optional[List[str]] = None, db_type: str = 
         else:
             print(f"Warning: No embeddings found for {source}, skipping vector database integration")
 
-async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List[str]] = None, db_type: Optional[str] = None):
+async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List[str]] = None, 
+                db_type: Optional[str] = None, incremental: bool = True):
     """Run the complete pipeline or specific steps for specified sources.
     
     Args:
         steps: List of steps to run (default: all steps)
         sources: List of sources to process (default: all sources)
         db_type: Type of vector database to use (default: from environment)
+        incremental: Whether to use incremental crawling (default: True)
     """
     if steps is None:
         steps = ['crawl', 'preprocess', 'embed', 'vectordb']
@@ -187,7 +202,7 @@ async def run_pipeline(steps: Optional[List[str]] = None, sources: Optional[List
     # Execute each step in the pipeline
     if 'crawl' in steps:
         print("\n=== Starting Crawling Phase ===")
-        await run_crawl_step(sources)
+        await run_crawl_step(sources, incremental)
     
     if 'preprocess' in steps:
         print("\n=== Starting Preprocessing Phase ===")
@@ -212,13 +227,21 @@ def parse_arguments():
                         help='Specify which documentation sources to process (default: all sources)')
     parser.add_argument('--db-type', choices=['pgvector', 'elasticsearch', 'weaviate'],
                         help='Specify which vector database to use (default: determined from environment)')
+    parser.add_argument('--incremental', action='store_true', default=True,
+                        help='Enable incremental crawling (only process changed documents)')
+    parser.add_argument('--full', action='store_true',
+                        help='Force full crawling (process all documents)')
     
     return parser.parse_args()
 
 def main_cli():
     """Entry point for the console script."""
     args = parse_arguments()
-    asyncio.run(run_pipeline(args.steps, args.sources, args.db_type))
+    
+    # If --full is specified, override --incremental
+    incremental = args.incremental and not args.full
+    
+    asyncio.run(run_pipeline(args.steps, args.sources, args.db_type, incremental))
 
 if __name__ == "__main__":
     main_cli()
