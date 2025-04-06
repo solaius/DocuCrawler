@@ -35,7 +35,7 @@ class Document(Base):
     collection = Column(String, nullable=False, index=True)
     title = Column(String, nullable=True)
     content = Column(Text, nullable=True)
-    metadata = Column(JSONB, nullable=True)
+    doc_metadata = Column(JSONB, nullable=True)  # Renamed from 'metadata' to avoid conflict
     embedding = Column(Vector(768))  # Default dimension, will be set dynamically
     
     def __repr__(self):
@@ -82,6 +82,13 @@ class PGVectorDB(BaseVectorDB):
         Returns:
             Host part of the URL
         """
+        # Handle special case for IP addresses without protocol
+        if url and not url.startswith(('http://', 'https://')):
+            # Check if it's an IP address with port
+            if ':' in url:
+                return url.split(':')[0]
+            return url
+            
         parsed_url = urlparse(url)
         return parsed_url.hostname or 'localhost'
     
@@ -94,6 +101,16 @@ class PGVectorDB(BaseVectorDB):
         Returns:
             Port part of the URL
         """
+        # Handle special case for IP addresses without protocol
+        if url and not url.startswith(('http://', 'https://')):
+            # Check if it's an IP address with port
+            if ':' in url:
+                try:
+                    return int(url.split(':')[1])
+                except (IndexError, ValueError):
+                    return 5432
+            return 5432
+            
         parsed_url = urlparse(url)
         return parsed_url.port or 5432
     
@@ -184,7 +201,7 @@ class PGVectorDB(BaseVectorDB):
                 collection=collection_name,
                 title=title,
                 content=content,
-                metadata=metadata,
+                doc_metadata=metadata,
                 embedding=embedding_vector
             )
             
@@ -203,7 +220,7 @@ class PGVectorDB(BaseVectorDB):
                         # Update existing document
                         existing_document.title = title
                         existing_document.content = content
-                        existing_document.metadata = metadata
+                        existing_document.doc_metadata = metadata
                         existing_document.embedding = embedding_vector
                     else:
                         # Insert new document
@@ -254,7 +271,7 @@ class PGVectorDB(BaseVectorDB):
                         elif key.startswith('metadata.'):
                             # Handle metadata filters
                             metadata_key = key.split('.', 1)[1]
-                            query = query.where(Document.metadata[metadata_key].astext == str(value))
+                            query = query.where(Document.doc_metadata[metadata_key].astext == str(value))
                 
                 # Execute query
                 result = await session.execute(query)
@@ -268,7 +285,7 @@ class PGVectorDB(BaseVectorDB):
                         'id': document.id,
                         'title': document.title,
                         'content': document.content,
-                        'metadata': document.metadata,
+                        'metadata': document.doc_metadata,
                         'similarity': 1.0 - distance  # Convert distance to similarity score
                     })
                 
