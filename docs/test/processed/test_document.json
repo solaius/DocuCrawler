@@ -1,0 +1,9 @@
+{
+    "title": "Test Document Title",
+    "summary": "This is a test document for the embedding generator.",
+    "content": "This is a test document for the embedding generator. It contains some text that will be used to generate embeddings. The embeddings will be used for semantic search and other NLP tasks.",
+    "metadata": {
+        "length": 150,
+        "source_file": "test_document.md"
+    }
+}

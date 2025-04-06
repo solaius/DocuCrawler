@@ -108,15 +108,12 @@ class WebCrawler(BaseCrawler):
                         if not filename:
                             filename = "index"
                         
-                        # Ensure filename is valid and unique
+                        # Ensure filename is valid
                         filename = filename.replace('.', '_').replace('-', '_')
                         filepath = os.path.join(output_dir, f"{filename}.md")
                         
-                        # Ensure unique filename
-                        counter = 1
-                        while os.path.exists(filepath):
-                            filepath = os.path.join(output_dir, f"{filename}_{counter}.md")
-                            counter += 1
+                        # We'll overwrite existing files to avoid creating duplicates with suffixes
+                        # This ensures that re-running the crawler updates existing files rather than creating new ones
                         
                         with open(filepath, "w", encoding="utf-8") as file:
                             # Use markdown instead of markdown_v2 (which is deprecated)
