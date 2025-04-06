@@ -54,10 +54,10 @@ async def run_crawl_step(sources: Optional[List[str]] = None):
         sources = ['langchain', 'docling', 'llama-stack', 'mcp']
     
     connectors = {
-        'langchain': LangChainConnector(),
-        'docling': DoclingConnector(),
-        'llama-stack': LlamaStackConnector(),
-        'mcp': MCPConnector()
+        'langchain': LangChainConnector({'output_dir': 'data/crawled/langchain'}),
+        'docling': DoclingConnector({'output_dir': 'data/crawled/docling'}),
+        'llama-stack': LlamaStackConnector({'output_dir': 'data/crawled/llama-stack'}),
+        'mcp': MCPConnector({'output_dir': 'data/crawled/mcp'})
     }
     
     for source in sources:

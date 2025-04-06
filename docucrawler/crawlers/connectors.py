@@ -25,7 +25,7 @@ class LangChainConnector(WebCrawler):
             'sitemap_url': 'https://python.langchain.com/sitemap.xml',
             'base_url': 'https://python.langchain.com/docs/',
             'max_depth': 3,
-            'output_dir': 'docs/crawled/langchain',
+            'output_dir': 'data/crawled/langchain',
             'headless': True,
             'max_concurrent': 10
         }
@@ -73,7 +73,7 @@ class DoclingConnector(WebCrawler):
             'sitemap_url': 'https://docling-project.github.io/docling/sitemap.xml',
             'base_url': 'https://docling-project.github.io/docling/',
             'max_depth': 3,
-            'output_dir': 'docs/crawled/docling',
+            'output_dir': 'data/crawled/docling',
             'headless': True,
             'max_concurrent': 10
         }
@@ -121,7 +121,7 @@ class LlamaStackConnector(WebCrawler):
             'sitemap_url': 'https://llama-stack.readthedocs.io/sitemap.xml',
             'base_url': 'https://llama-stack.readthedocs.io/en/latest/',
             'max_depth': 3,
-            'output_dir': 'docs/crawled/llama-stack',
+            'output_dir': 'data/crawled/llama-stack',
             'headless': True,
             'max_concurrent': 10
         }
@@ -169,7 +169,7 @@ class MCPConnector(WebCrawler):
             'sitemap_url': 'https://modelcontextprotocol.io/sitemap.xml',
             'base_url': 'https://modelcontextprotocol.io/',
             'max_depth': 3,
-            'output_dir': 'docs/crawled/mcp',
+            'output_dir': 'data/crawled/mcp',
             'headless': True,
             'max_concurrent': 10
         }
