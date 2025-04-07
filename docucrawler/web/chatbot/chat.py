@@ -13,10 +13,10 @@ from docucrawler.web.chatbot import chatbot_bp
 from docucrawler.vectordb.integration import search_documents
 from docucrawler.web.api.search import generate_query_embedding
 
-# Get Granite LLM API credentials from environment variables
-GRANITE_LLM_URL = os.getenv('GRANITE_LLM_URL')
-GRANITE_LLM_API_KEY = os.getenv('GRANITE_LLM_API_KEY')
-GRANITE_LLM_MODEL = os.getenv('GRANITE_LLM_MODEL', 'granite-7b-chat')
+# Get Granite Instruct API credentials from environment variables
+GRANITE_INSTRUCT_URL = os.getenv('GRANITE_INSTRUCT_URL')
+GRANITE_INSTRUCT_API = os.getenv('GRANITE_INSTRUCT_API')
+GRANITE_INSTRUCT_MODEL_NAME = os.getenv('GRANITE_INSTRUCT_MODEL_NAME', 'granite-3-8b-instruct')
 
 @chatbot_bp.route('/chat', methods=['POST'])
 def chat():
@@ -42,10 +42,10 @@ def chat():
             'error': 'Message is required'
         }), 400
     
-    # Check if Granite LLM API credentials are available
-    if not GRANITE_LLM_URL or not GRANITE_LLM_API_KEY:
+    # Check if Granite Instruct API credentials are available
+    if not GRANITE_INSTRUCT_URL or not GRANITE_INSTRUCT_API:
         return jsonify({
-            'error': 'Granite LLM API credentials not configured'
+            'error': 'Granite Instruct API credentials not configured'
         }), 500
     
     try:
@@ -80,57 +80,66 @@ def chat():
             if content:
                 context += content + "\n\n"
         
-        # Prepare the prompt for the LLM
-        system_prompt = f"""You are DocuCrawler Assistant, a helpful AI that answers questions about documentation.
-Use the following context to answer the user's question. If you don't know the answer, say so.
-
-Context:
-{context}"""
+        # Prepare the prompt for the Instruct model
+        # Format the conversation history and context into a single prompt
+        prompt = "You are DocuCrawler Assistant, a helpful AI that answers questions about documentation.\n\n"
         
-        # Prepare the messages for the LLM
-        messages = [
-            {"role": "system", "content": system_prompt}
-        ]
+        # Add conversation history
+        if history:
+            prompt += "Previous conversation:\n"
+            for msg in history:
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+                if role and content:
+                    if role == 'user':
+                        prompt += f"User: {content}\n"
+                    else:
+                        prompt += f"Assistant: {content}\n"
+            prompt += "\n"
         
-        # Add history messages
-        for msg in history:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
-            if role and content:
-                messages.append({"role": role, "content": content})
+        # Add context from search results
+        prompt += f"Context information from documentation:\n{context}\n\n"
         
-        # Add the current message
-        messages.append({"role": "user", "content": message})
+        # Add the current question
+        prompt += f"User: {message}\n\nAssistant: "
         
-        # Call the Granite LLM API
+        # Call the Granite Instruct API
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {GRANITE_LLM_API_KEY}"
+            "Authorization": f"Bearer {GRANITE_INSTRUCT_API}"
         }
+        
+        # Construct the API URL with the /v1/chat/completions endpoint
+        api_url = f"{GRANITE_INSTRUCT_URL.rstrip('/')}/v1/chat/completions"
         
         payload = {
-            "model": GRANITE_LLM_MODEL,
-            "messages": messages,
+            "model": GRANITE_INSTRUCT_MODEL_NAME,
+            "prompt": prompt,
             "temperature": 0.7,
-            "max_tokens": 1000
+            "max_tokens": 1000,
+            "stop": ["User:", "\n\n"]
         }
         
+        print(f"Calling Granite Instruct API at: {api_url}")
+        
         response = requests.post(
-            GRANITE_LLM_URL,
+            api_url,
             headers=headers,
             json=payload
         )
         
         if response.status_code != 200:
+            print(f"API Error: {response.status_code} - {response.text}")
             return jsonify({
-                'error': f'Granite LLM API error: {response.text}'
+                'error': f'Granite Instruct API error: {response.text}'
             }), 500
         
         # Parse the response
         response_data = response.json()
+        print(f"API Response: {response_data}")
         
         # Extract the assistant's reply
-        assistant_reply = response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
+        assistant_reply = response_data.get('choices', [{}])[0].get('text', '')
         
         return jsonify({
             'reply': assistant_reply,
