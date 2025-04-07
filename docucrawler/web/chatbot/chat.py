@@ -80,28 +80,30 @@ def chat():
             if content:
                 context += content + "\n\n"
         
-        # Prepare the prompt for the Instruct model
-        # Format the conversation history and context into a single prompt
-        prompt = "You are DocuCrawler Assistant, a helpful AI that answers questions about documentation.\n\n"
+        # Prepare the system message with context
+        system_message = f"""You are DocuCrawler Assistant, a helpful AI that answers questions about documentation.
+Use the following context information to answer the user's question. If you don't know the answer, say so.
+
+Context information from documentation:
+{context}"""
+        
+        # Prepare messages in the format expected by the API
+        messages = [
+            {"role": "system", "content": system_message}
+        ]
         
         # Add conversation history
-        if history:
-            prompt += "Previous conversation:\n"
-            for msg in history:
-                role = msg.get('role', 'user')
-                content = msg.get('content', '')
-                if role and content:
-                    if role == 'user':
-                        prompt += f"User: {content}\n"
-                    else:
-                        prompt += f"Assistant: {content}\n"
-            prompt += "\n"
-        
-        # Add context from search results
-        prompt += f"Context information from documentation:\n{context}\n\n"
+        for msg in history:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role and content:
+                # Make sure role is either 'user' or 'assistant'
+                if role not in ['user', 'assistant']:
+                    role = 'user'
+                messages.append({"role": role, "content": content})
         
         # Add the current question
-        prompt += f"User: {message}\n\nAssistant: "
+        messages.append({"role": "user", "content": message})
         
         # Call the Granite Instruct API
         headers = {
@@ -114,10 +116,9 @@ def chat():
         
         payload = {
             "model": GRANITE_INSTRUCT_MODEL_NAME,
-            "prompt": prompt,
+            "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 1000,
-            "stop": ["User:", "\n\n"]
+            "max_tokens": 1000
         }
         
         print(f"Calling Granite Instruct API at: {api_url}")
@@ -139,7 +140,7 @@ def chat():
         print(f"API Response: {response_data}")
         
         # Extract the assistant's reply
-        assistant_reply = response_data.get('choices', [{}])[0].get('text', '')
+        assistant_reply = response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
         
         return jsonify({
             'reply': assistant_reply,
