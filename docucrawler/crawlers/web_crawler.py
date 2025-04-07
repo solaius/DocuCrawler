@@ -181,7 +181,7 @@ class WebCrawler(BaseCrawler):
                             source=source_name,
                             document_id=filename,
                             content=content,
-                            metadata={'url': url, 'title': result.title}
+                            metadata={'url': url, 'title': getattr(result, 'title', '') if hasattr(result, 'title') else ''}
                         )
                         
                         if is_new or has_changed:
