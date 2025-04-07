@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuCrawler - Documentation Search</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="logo">
+                <h1>DocuCrawler</h1>
+                <p>Documentation Search & Chatbot</p>
+            </div>
+            <nav class="nav">
+                <ul>
+                    <li><a href="#" class="active" id="search-tab">Search</a></li>
+                    <li><a href="#" id="chatbot-tab">Chatbot</a></li>
+                    <li><a href="#" id="about-tab">About</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main class="main">
+            <!-- Search Tab -->
+            <section id="search-section" class="tab-section active">
+                <div class="search-container">
+                    <div class="search-controls">
+                        <div class="search-bar">
+                            <input type="text" id="search-input" placeholder="Search documentation...">
+                            <button id="search-button"><i class="fas fa-search"></i></button>
+                        </div>
+                        <div class="search-options">
+                            <div class="option-group">
+                                <label for="collection-select">Collection:</label>
+                                <select id="collection-select">
+                                    <option value="mcp">Model Context Protocol</option>
+                                    <option value="langchain">LangChain</option>
+                                    <option value="docling">Docling</option>
+                                    <option value="llama-stack">Meta Llama Stack</option>
+                                </select>
+                            </div>
+                            <div class="option-group">
+                                <label for="db-type-select">Database:</label>
+                                <select id="db-type-select">
+                                    <option value="pgvector">PGVector</option>
+                                    <option value="elasticsearch">Elasticsearch</option>
+                                    <option value="weaviate">Weaviate</option>
+                                </select>
+                            </div>
+                            <div class="option-group">
+                                <label for="limit-select">Results:</label>
+                                <select id="limit-select">
+                                    <option value="5">5</option>
+                                    <option value="10" selected>10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                            <div class="option-group checkbox">
+                                <input type="checkbox" id="group-chunks-checkbox" checked>
+                                <label for="group-chunks-checkbox">Group Chunks</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="search-results" id="search-results">
+                        <div class="results-placeholder">
+                            <i class="fas fa-search fa-3x"></i>
+                            <p>Enter a search query to find documentation</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chatbot Tab -->
+            <section id="chatbot-section" class="tab-section">
+                <div class="chatbot-container">
+                    <div class="chat-options">
+                        <div class="option-group">
+                            <label for="chat-collection-select">Collection:</label>
+                            <select id="chat-collection-select">
+                                <option value="mcp">Model Context Protocol</option>
+                                <option value="langchain">LangChain</option>
+                                <option value="docling">Docling</option>
+                                <option value="llama-stack">Meta Llama Stack</option>
+                            </select>
+                        </div>
+                        <div class="option-group">
+                            <label for="chat-db-type-select">Database:</label>
+                            <select id="chat-db-type-select">
+                                <option value="pgvector">PGVector</option>
+                                <option value="elasticsearch">Elasticsearch</option>
+                                <option value="weaviate">Weaviate</option>
+                            </select>
+                        </div>
+                        <button id="clear-chat-button">Clear Chat</button>
+                    </div>
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="message system">
+                            <div class="message-content">
+                                <p>Hello! I'm DocuCrawler Assistant. Ask me anything about the documentation.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <textarea id="chat-input" placeholder="Type your message..."></textarea>
+                        <button id="send-message-button"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- About Tab -->
+            <section id="about-section" class="tab-section">
+                <div class="about-container">
+                    <h2>About DocuCrawler</h2>
+                    <p>DocuCrawler is an intelligent, extensible documentation aggregation system that pulls the latest documentation, examples, and guides from various software products to support rapid software development.</p>
+                    
+                    <h3>Features</h3>
+                    <ul>
+                        <li>Automated collection and processing of documentation across multiple sources</li>
+                        <li>Incremental updates that only process changed documents to save time and resources</li>
+                        <li>Advanced content chunking for better semantic coherence in search results</li>
+                        <li>Structured output in markdown/JSON format for easy consumption by downstream systems</li>
+                        <li>Integration with embedding models for semantic search capabilities</li>
+                        <li>Vector database integration for efficient semantic search (PGVector, Elasticsearch, Weaviate)</li>
+                        <li>Modular architecture for easy extension to new documentation sources</li>
+                    </ul>
+                    
+                    <h3>Supported Documentation Sources</h3>
+                    <ul>
+                        <li>LangChain</li>
+                        <li>Docling</li>
+                        <li>Meta Llama Stack</li>
+                        <li>Model Context Protocol (MCP)</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2023 DocuCrawler. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
