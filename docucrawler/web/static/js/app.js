@@ -307,82 +307,63 @@ function displaySearchResults(data) {
         let content = result.content || '';
         
         // Highlight search terms in content
-        const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+        // Extract individual terms and also include the full query for exact phrase matching
+        const queryTerms = [];
+        
+        // Add the full query for exact phrase matching
+        if (query.length > 2) {
+            queryTerms.push(query.toLowerCase());
+        }
+        
+        // Add individual terms
+        const individualTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+        queryTerms.push(...individualTerms);
         
         // Convert content from markdown to HTML
         let contentHtml = marked.parse(content);
         
         // Highlight search terms in the HTML content
         if (queryTerms.length > 0) {
-            // Create a temporary div to manipulate the HTML
+            // Use a simpler approach with string replacement for highlighting
+            // Sort terms by length (longest first) to prioritize longer matches
+            const sortedTerms = [...queryTerms].sort((a, b) => b.length - a.length);
+            
+            // Create a temporary div to work with the HTML
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = contentHtml;
             
-            // Function to highlight text in a text node
-            function highlightTextNode(textNode, term) {
-                const text = textNode.nodeValue;
-                const lowerText = text.toLowerCase();
-                let lastIndex = 0;
-                let result = document.createDocumentFragment();
-                let match;
-                
-                // Find all occurrences of the term
-                let startIndex = lowerText.indexOf(term, lastIndex);
-                while (startIndex !== -1) {
-                    // Add text before the match
-                    if (startIndex > lastIndex) {
-                        result.appendChild(document.createTextNode(text.substring(lastIndex, startIndex)));
-                    }
-                    
-                    // Add the highlighted match
-                    const span = document.createElement('span');
-                    span.className = 'highlight';
-                    span.textContent = text.substring(startIndex, startIndex + term.length);
-                    result.appendChild(span);
-                    
-                    // Update lastIndex
-                    lastIndex = startIndex + term.length;
-                    
-                    // Find the next occurrence
-                    startIndex = lowerText.indexOf(term, lastIndex);
-                }
-                
-                // Add any remaining text
-                if (lastIndex < text.length) {
-                    result.appendChild(document.createTextNode(text.substring(lastIndex)));
-                }
-                
-                return result;
+            // Get the HTML as text
+            const htmlText = tempDiv.innerHTML;
+            
+            // Function to escape special characters in a string for use in a regular expression
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             }
             
-            // Function to recursively process nodes
-            function processNode(node) {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    let highlighted = node;
-                    
-                    // Apply highlighting for each term
-                    for (const term of queryTerms) {
-                        if (node.nodeValue.toLowerCase().includes(term)) {
-                            highlighted = highlightTextNode(node, term);
-                            break;
-                        }
-                    }
-                    
-                    if (highlighted !== node) {
-                        node.parentNode.replaceChild(highlighted, node);
-                    }
-                } else if (node.nodeType === Node.ELEMENT_NODE && 
-                          !['script', 'style', 'pre', 'code'].includes(node.nodeName.toLowerCase())) {
-                    // Process child nodes
-                    Array.from(node.childNodes).forEach(processNode);
+            // Create a regular expression that matches any of the terms
+            // Use word boundaries to avoid partial matches
+            const termPatterns = sortedTerms.map(term => {
+                // For multi-word terms, don't use word boundaries
+                if (term.includes(' ')) {
+                    return escapeRegExp(term);
                 }
-            }
+                // For single words, use word boundaries
+                return `\\b${escapeRegExp(term)}\\b`;
+            });
             
-            // Process all nodes in the content
-            Array.from(tempDiv.childNodes).forEach(processNode);
+            // Join the patterns with the OR operator
+            const pattern = termPatterns.join('|');
             
-            // Get the highlighted HTML
-            contentHtml = tempDiv.innerHTML;
+            // Create a regular expression with the 'gi' flags (global, case-insensitive)
+            const regex = new RegExp(pattern, 'gi');
+            
+            // Replace all matches with highlighted spans
+            const highlightedHtml = htmlText.replace(regex, match => {
+                return `<span class="highlight">${match}</span>`;
+            });
+            
+            // Set the highlighted HTML
+            contentHtml = highlightedHtml;
         }
         
         // Add chunk information if available
