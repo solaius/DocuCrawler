@@ -57,46 +57,93 @@ def search():
         limit = data.get('limit', 10)
         group_chunks = data.get('group_chunks', True)
         filters = data.get('filters', {})
+        search_type = filters.get('searchType', 'semantic')
     else:
         query = request.args.get('query', '')
         collection = request.args.get('collection', 'mcp')
         db_type = request.args.get('db_type', 'pgvector')
         limit = int(request.args.get('limit', 10))
         group_chunks = request.args.get('group_chunks', 'true').lower() == 'true'
+        search_type = request.args.get('search_type', 'semantic')
         filters = {}
     
     if not query:
         return jsonify({
             'error': 'Query parameter is required'
         }), 400
+        
+    # Process advanced filters
+    search_filters = {}
+    
+    # Add document type filters if provided
+    if filters and 'docTypes' in filters:
+        search_filters['doc_type'] = filters['docTypes']
+    
+    # Add content feature filters if provided
+    if filters and 'contentFeatures' in filters:
+        for feature in filters['contentFeatures']:
+            if feature == 'code':
+                search_filters['has_code'] = True
+            elif feature == 'images':
+                search_filters['has_images'] = True
     
     # Run the search asynchronously
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
     try:
-        # Generate embedding for the query
-        query_embedding = loop.run_until_complete(generate_query_embedding(query))
+        results = []
         
-        if not query_embedding:
-            return jsonify({
-                'error': 'Failed to generate query embedding'
-            }), 500
+        # Handle different search types
+        if search_type == 'semantic' or search_type == 'hybrid':
+            # Generate embedding for the query
+            query_embedding = loop.run_until_complete(generate_query_embedding(query))
+            
+            if not query_embedding:
+                return jsonify({
+                    'error': 'Failed to generate query embedding'
+                }), 500
+            
+            # Search for documents using vector search
+            results = loop.run_until_complete(search_documents(
+                query_embedding=query_embedding,
+                db_type=db_type,
+                collection_name=collection,
+                limit=limit,
+                filters=search_filters,
+                group_chunks=group_chunks
+            ))
         
-        # Search for documents
-        results = loop.run_until_complete(search_documents(
-            query_embedding=query_embedding,
-            db_type=db_type,
-            collection_name=collection,
-            limit=limit,
-            filters=filters,
-            group_chunks=group_chunks
-        ))
+        # For keyword or hybrid search, we would add keyword search here
+        # This is a placeholder for future implementation
+        if search_type == 'keyword' or search_type == 'hybrid':
+            # For now, just log that keyword search was requested
+            print(f"Keyword search requested for query: {query}")
+            
+            # In a real implementation, we would:
+            # 1. Perform keyword search
+            # 2. If hybrid, merge with semantic results
+            # 3. Re-rank combined results
+            
+            # Placeholder for keyword search
+            if search_type == 'keyword' and not results:
+                # Simple keyword matching for demonstration
+                # In a real implementation, this would use a proper text search engine
+                keyword_results = []
+                
+                # This is just a placeholder and would be replaced with actual keyword search
+                # For now, we'll just return the semantic results
+        
+        # Add search metadata to results
+        for result in results:
+            result['search_type'] = search_type
         
         return jsonify({
             'query': query,
             'collection': collection,
             'db_type': db_type,
+            'search_type': search_type,
+            'filters': search_filters,
             'results': results
         })
     

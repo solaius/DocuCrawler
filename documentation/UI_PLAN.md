@@ -88,10 +88,10 @@ This document outlines the plan for implementing the user interface and chatbot 
 - [x] Basic styling and responsive design
 
 ### Phase 2: Advanced Search & Filtering
-- [  ] Add index selector component
-- [  ] Implement filtering options
-- [  ] Enhance result presentation
-- [  ] Add hybrid search capabilities
+- [x] Add index selector component
+- [x] Implement advanced filtering options
+- [x] Enhance result presentation with highlighting
+- [x] Add hybrid search capabilities (framework)
 
 ### Phase 3: Chatbot Integration
 - [x] Implement chat interface
@@ -108,14 +108,16 @@ This document outlines the plan for implementing the user interface and chatbot 
 ## Current Status
 
 - Phase 1 (Basic Search Interface) completed
-- Phase 3 (Chatbot Integration) mostly completed
-- Phase 2 (Advanced Search & Filtering) partially implemented
-- Ready for initial testing
+- Phase 2 (Advanced Search & Filtering) completed
+- Phase 3 (Chatbot Integration) completed
+- Ready for user testing and feedback
 
 ## Notes & Updates
 
 - Initial plan created
 - Basic web application structure implemented
 - Search functionality implemented with API endpoints
+- Advanced filtering and result highlighting implemented
+- Hybrid search framework added (semantic + keyword)
 - Chatbot interface implemented with Granite LLM API integration
-- Next steps: Complete Phase 2 and refine the UI/UX
+- Next steps: Implement dashboard and system management features

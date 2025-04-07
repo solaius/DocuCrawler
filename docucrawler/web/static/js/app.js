@@ -9,6 +9,15 @@ const dbTypeSelect = document.getElementById('db-type-select');
 const limitSelect = document.getElementById('limit-select');
 const groupChunksCheckbox = document.getElementById('group-chunks-checkbox');
 
+// Advanced Filters Elements
+const advancedFiltersToggle = document.getElementById('advanced-filters-toggle');
+const advancedFiltersPanel = document.getElementById('advanced-filters-panel');
+const applyFiltersButton = document.getElementById('apply-filters-button');
+const resetFiltersButton = document.getElementById('reset-filters-button');
+const searchTypeRadios = document.querySelectorAll('input[name="search-type"]');
+const docTypeCheckboxes = document.querySelectorAll('input[name="doc-type"]');
+const contentFeatureCheckboxes = document.querySelectorAll('input[name="content-feature"]');
+
 const chatInput = document.getElementById('chat-input');
 const sendMessageButton = document.getElementById('send-message-button');
 const chatMessages = document.getElementById('chat-messages');
@@ -35,7 +44,7 @@ function init() {
     // Load available database types
     loadDbTypes();
     
-    // Add event listeners
+    // Add event listeners for search
     searchButton.addEventListener('click', performSearch);
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
@@ -43,6 +52,12 @@ function init() {
         }
     });
     
+    // Add event listeners for advanced filters
+    advancedFiltersToggle.addEventListener('click', toggleAdvancedFilters);
+    applyFiltersButton.addEventListener('click', performSearch);
+    resetFiltersButton.addEventListener('click', resetFilters);
+    
+    // Add event listeners for chat
     sendMessageButton.addEventListener('click', sendChatMessage);
     chatInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -71,6 +86,33 @@ function init() {
     
     // Load preferences from local storage
     loadPreferences();
+}
+
+// Toggle advanced filters panel
+function toggleAdvancedFilters() {
+    if (advancedFiltersPanel.style.display === 'block') {
+        advancedFiltersPanel.style.display = 'none';
+        advancedFiltersToggle.innerHTML = '<i class="fas fa-filter"></i> Advanced Filters';
+    } else {
+        advancedFiltersPanel.style.display = 'block';
+        advancedFiltersToggle.innerHTML = '<i class="fas fa-filter"></i> Hide Filters';
+    }
+}
+
+// Reset filters to default values
+function resetFilters() {
+    // Reset search type
+    document.getElementById('search-type-semantic').checked = true;
+    
+    // Reset document types
+    docTypeCheckboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    
+    // Reset content features
+    contentFeatureCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
 }
 
 // Load available collections
@@ -146,17 +188,41 @@ function performSearch() {
         </div>
     `;
     
-    // Get search parameters
+    // Get basic search parameters
     const collection = collectionSelect.value;
     const dbType = dbTypeSelect.value;
     const limit = limitSelect.value;
     const groupChunks = groupChunksCheckbox.checked;
     
+    // Get advanced filter parameters
+    const filters = getAdvancedFilters();
+    
     // Save preferences to local storage
     savePreferences();
     
+    // Prepare search URL
+    let searchUrl = `/api/search?query=${encodeURIComponent(query)}&collection=${collection}&db_type=${dbType}&limit=${limit}&group_chunks=${groupChunks}`;
+    
+    // Add search type parameter
+    if (filters.searchType) {
+        searchUrl += `&search_type=${filters.searchType}`;
+    }
+    
     // Perform search
-    fetch(`/api/search?query=${encodeURIComponent(query)}&collection=${collection}&db_type=${dbType}&limit=${limit}&group_chunks=${groupChunks}`)
+    fetch(searchUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            query: query,
+            collection: collection,
+            db_type: dbType,
+            limit: parseInt(limit),
+            group_chunks: groupChunks,
+            filters: filters
+        })
+    })
         .then(response => response.json())
         .then(data => {
             displaySearchResults(data);
@@ -171,30 +237,177 @@ function performSearch() {
         });
 }
 
+// Get advanced filters
+function getAdvancedFilters() {
+    const filters = {};
+    
+    // Get search type
+    for (const radio of searchTypeRadios) {
+        if (radio.checked) {
+            filters.searchType = radio.value;
+            break;
+        }
+    }
+    
+    // Get document types
+    const docTypes = [];
+    for (const checkbox of docTypeCheckboxes) {
+        if (checkbox.checked) {
+            docTypes.push(checkbox.value);
+        }
+    }
+    if (docTypes.length > 0) {
+        filters.docTypes = docTypes;
+    }
+    
+    // Get content features
+    const contentFeatures = [];
+    for (const checkbox of contentFeatureCheckboxes) {
+        if (checkbox.checked) {
+            contentFeatures.push(checkbox.value);
+        }
+    }
+    if (contentFeatures.length > 0) {
+        filters.contentFeatures = contentFeatures;
+    }
+    
+    return filters;
+}
+
 // Display search results
 function displaySearchResults(data) {
     const results = data.results;
+    const query = data.query;
+    const searchType = data.search_type || 'semantic';
     
     if (!results || results.length === 0) {
         searchResults.innerHTML = `
             <div class="no-results">
-                <p>No results found for "${data.query}".</p>
+                <p>No results found for "${query}".</p>
             </div>
         `;
         return;
     }
     
     // Build results HTML
-    let resultsHtml = `<h2>Results for "${data.query}"</h2>`;
+    let resultsHtml = `
+        <div class="results-header">
+            <h2>Results for "${query}"</h2>
+            <div class="results-meta">
+                <span>Search type: <strong>${searchType}</strong></span>
+                <span>Found: <strong>${results.length}</strong> results</span>
+            </div>
+        </div>
+    `;
     
     results.forEach((result, index) => {
         const title = result.title || 'Untitled';
         const id = result.id || '';
         const similarity = (result.similarity * 100).toFixed(2);
-        const content = result.content || '';
+        let content = result.content || '';
+        
+        // Highlight search terms in content
+        const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
         
         // Convert content from markdown to HTML
-        const contentHtml = marked.parse(content);
+        let contentHtml = marked.parse(content);
+        
+        // Highlight search terms in the HTML content
+        if (queryTerms.length > 0) {
+            // Create a temporary div to manipulate the HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = contentHtml;
+            
+            // Function to highlight text in a text node
+            function highlightTextNode(textNode, term) {
+                const text = textNode.nodeValue;
+                const lowerText = text.toLowerCase();
+                let lastIndex = 0;
+                let result = document.createDocumentFragment();
+                let match;
+                
+                // Find all occurrences of the term
+                let startIndex = lowerText.indexOf(term, lastIndex);
+                while (startIndex !== -1) {
+                    // Add text before the match
+                    if (startIndex > lastIndex) {
+                        result.appendChild(document.createTextNode(text.substring(lastIndex, startIndex)));
+                    }
+                    
+                    // Add the highlighted match
+                    const span = document.createElement('span');
+                    span.className = 'highlight';
+                    span.textContent = text.substring(startIndex, startIndex + term.length);
+                    result.appendChild(span);
+                    
+                    // Update lastIndex
+                    lastIndex = startIndex + term.length;
+                    
+                    // Find the next occurrence
+                    startIndex = lowerText.indexOf(term, lastIndex);
+                }
+                
+                // Add any remaining text
+                if (lastIndex < text.length) {
+                    result.appendChild(document.createTextNode(text.substring(lastIndex)));
+                }
+                
+                return result;
+            }
+            
+            // Function to recursively process nodes
+            function processNode(node) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    let highlighted = node;
+                    
+                    // Apply highlighting for each term
+                    for (const term of queryTerms) {
+                        if (node.nodeValue.toLowerCase().includes(term)) {
+                            highlighted = highlightTextNode(node, term);
+                            break;
+                        }
+                    }
+                    
+                    if (highlighted !== node) {
+                        node.parentNode.replaceChild(highlighted, node);
+                    }
+                } else if (node.nodeType === Node.ELEMENT_NODE && 
+                          !['script', 'style', 'pre', 'code'].includes(node.nodeName.toLowerCase())) {
+                    // Process child nodes
+                    Array.from(node.childNodes).forEach(processNode);
+                }
+            }
+            
+            // Process all nodes in the content
+            Array.from(tempDiv.childNodes).forEach(processNode);
+            
+            // Get the highlighted HTML
+            contentHtml = tempDiv.innerHTML;
+        }
+        
+        // Add chunk information if available
+        let chunksHtml = '';
+        if (result.chunks && result.chunks.length > 0) {
+            chunksHtml = `
+                <div class="result-chunks">
+                    <div class="chunks-header">
+                        <span>Contains ${result.chunks.length} chunks</span>
+                        <button class="toggle-chunks secondary-button">Show Chunks</button>
+                    </div>
+                    <div class="chunks-content" style="display: none;">
+                        ${result.chunks.map((chunk, i) => `
+                            <div class="chunk-item">
+                                <div class="chunk-header">
+                                    <span>Chunk ${i+1}</span>
+                                    <span>Similarity: ${(chunk.similarity * 100).toFixed(2)}%</span>
+                                </div>
+                                <div class="chunk-content">${chunk.content}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
         
         resultsHtml += `
             <div class="result-item">
@@ -202,13 +415,29 @@ function displaySearchResults(data) {
                 <div class="result-meta">
                     <span>ID: ${id}</span>
                     <span>Similarity: ${similarity}%</span>
+                    ${result.search_type ? `<span>Match type: ${result.search_type}</span>` : ''}
                 </div>
                 <div class="result-content">${contentHtml}</div>
+                ${chunksHtml}
             </div>
         `;
     });
     
     searchResults.innerHTML = resultsHtml;
+    
+    // Add event listeners to toggle chunks
+    document.querySelectorAll('.toggle-chunks').forEach(button => {
+        button.addEventListener('click', function() {
+            const chunksContent = this.parentNode.nextElementSibling;
+            if (chunksContent.style.display === 'none') {
+                chunksContent.style.display = 'block';
+                this.textContent = 'Hide Chunks';
+            } else {
+                chunksContent.style.display = 'none';
+                this.textContent = 'Show Chunks';
+            }
+        });
+    });
     
     // Apply syntax highlighting to code blocks
     document.querySelectorAll('pre code').forEach((block) => {

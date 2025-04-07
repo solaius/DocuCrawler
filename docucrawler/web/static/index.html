@@ -64,12 +64,85 @@
                                 <input type="checkbox" id="group-chunks-checkbox" checked>
                                 <label for="group-chunks-checkbox">Group Chunks</label>
                             </div>
+                            <div class="option-group">
+                                <button id="advanced-filters-toggle" class="secondary-button">
+                                    <i class="fas fa-filter"></i> Advanced Filters
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Filters Panel (hidden by default) -->
+                        <div class="advanced-filters-panel" id="advanced-filters-panel">
+                            <h3>Advanced Filters</h3>
+                            <div class="filter-groups">
+                                <div class="filter-group">
+                                    <h4>Search Type</h4>
+                                    <div class="filter-options">
+                                        <div class="filter-option">
+                                            <input type="radio" id="search-type-semantic" name="search-type" value="semantic" checked>
+                                            <label for="search-type-semantic">Semantic</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="radio" id="search-type-keyword" name="search-type" value="keyword">
+                                            <label for="search-type-keyword">Keyword</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="radio" id="search-type-hybrid" name="search-type" value="hybrid">
+                                            <label for="search-type-hybrid">Hybrid</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <h4>Document Type</h4>
+                                    <div class="filter-options">
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="doc-type-guide" name="doc-type" value="guide" checked>
+                                            <label for="doc-type-guide">Guides</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="doc-type-api" name="doc-type" value="api" checked>
+                                            <label for="doc-type-api">API Reference</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="doc-type-tutorial" name="doc-type" value="tutorial" checked>
+                                            <label for="doc-type-tutorial">Tutorials</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="doc-type-example" name="doc-type" value="example" checked>
+                                            <label for="doc-type-example">Examples</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <h4>Content Features</h4>
+                                    <div class="filter-options">
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="has-code" name="content-feature" value="code">
+                                            <label for="has-code">Contains Code</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="has-images" name="content-feature" value="images">
+                                            <label for="has-images">Contains Images</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="filter-actions">
+                                <button id="apply-filters-button">Apply Filters</button>
+                                <button id="reset-filters-button" class="secondary-button">Reset</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="search-results" id="search-results">
-                        <div class="results-placeholder">
-                            <i class="fas fa-search fa-3x"></i>
-                            <p>Enter a search query to find documentation</p>
+                    
+                    <div class="search-results-container">
+                        <div class="search-results" id="search-results">
+                            <div class="results-placeholder">
+                                <i class="fas fa-search fa-3x"></i>
+                                <p>Enter a search query to find documentation</p>
+                            </div>
                         </div>
                     </div>
                 </div>
