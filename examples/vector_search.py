@@ -72,12 +72,19 @@ async def search_vector_db(query: str,
     
     # Search for similar documents
     print(f"Searching for similar documents in {db_type} collection '{collection_name}'...")
+    
+    # Extract group_chunks parameter from filters if present
+    group_chunks = True
+    if filters and 'group_chunks' in filters:
+        group_chunks = filters.pop('group_chunks')
+    
     results = await search_documents(
         query_embedding=query_embedding,
         db_type=db_type,
         collection_name=collection_name,
         limit=limit,
-        filters=filters
+        filters=filters,
+        group_chunks=group_chunks
     )
     
     # Display results
@@ -87,9 +94,23 @@ async def search_vector_db(query: str,
     
     print(f"\nFound {len(results)} results:")
     for i, result in enumerate(results):
-        print(f"\n{i+1}. {result['title']} (Similarity: {result['similarity']:.4f})")
-        print(f"   ID: {result['id']}")
-        print(f"   Summary: {result['content'][:200]}...")
+        print(f"\n{i+1}. {result.get('title', 'Untitled')} (Similarity: {result.get('similarity', 0):.4f})")
+        print(f"   ID: {result.get('id', 'unknown')}")
+        
+        # Check if this result has chunks
+        if 'chunks' in result and result['chunks']:
+            print(f"   Contains {len(result['chunks'])} chunks")
+            
+            # Display the most relevant chunk
+            most_relevant_chunk = max(result['chunks'], key=lambda x: x.get('similarity', 0))
+            print(f"   Most relevant chunk: {most_relevant_chunk.get('content', '')[:200]}...")
+        else:
+            # Display regular content
+            content = result.get('content', '')
+            if content:
+                print(f"   Content: {content[:200]}...")
+            else:
+                print("   No content available")
 
 async def main():
     """Run the vector search example."""
@@ -99,6 +120,7 @@ async def main():
     parser.add_argument('--db-type', default='pgvector', choices=['pgvector', 'elasticsearch', 'weaviate'],
                         help='Vector database type to use')
     parser.add_argument('--limit', type=int, default=5, help='Maximum number of results to return')
+    parser.add_argument('--no-group', action='store_true', help='Do not group chunks from the same document')
     
     args = parser.parse_args()
     
@@ -106,7 +128,8 @@ async def main():
         query=args.query,
         collection_name=args.collection,
         db_type=args.db_type,
-        limit=args.limit
+        limit=args.limit,
+        filters={'group_chunks': not args.no_group}
     )
 
 if __name__ == "__main__":
