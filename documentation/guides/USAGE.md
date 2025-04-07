@@ -7,7 +7,7 @@ This guide provides detailed instructions on how to use DocuCrawler for crawling
 DocuCrawler provides a command-line interface for running the documentation pipeline. The basic command structure is:
 
 ```bash
-python main.py [--steps STEPS [STEPS ...]] [--sources SOURCES [SOURCES ...]] [--db-type DB_TYPE]
+python main.py [--steps STEPS [STEPS ...]] [--sources SOURCES [SOURCES ...]] [--db-type DB_TYPE] [--full] [--basic-chunking]
 ```
 
 ### Parameters
@@ -23,6 +23,18 @@ python main.py [--steps STEPS [STEPS ...]] [--sources SOURCES [SOURCES ...]] [--
 - `--db-type`: Specify which vector database to use (default: determined from environment)
   - Available databases: `pgvector`, `elasticsearch`, `weaviate`
   - Example: `--db-type pgvector`
+
+- `--incremental`: Enable incremental crawling to only process changed documents (default: enabled)
+  - This saves time and resources by skipping unchanged documents
+
+- `--full`: Force full crawling, processing all documents even if unchanged
+  - Use this when you want to rebuild the entire database
+
+- `--advanced-chunking`: Enable advanced chunking for better semantic coherence (default: enabled)
+  - This creates chunks that respect document structure (sections, paragraphs)
+
+- `--basic-chunking`: Use basic chunking instead of advanced chunking
+  - Use this for simpler, token-based chunking
 
 ### Examples
 
@@ -50,6 +62,24 @@ python main.py --steps embed vectordb --db-type elasticsearch
 python main.py --sources mcp --db-type pgvector
 ```
 
+5. **Force full crawling (disable incremental updates)**
+
+```bash
+python main.py --full
+```
+
+6. **Use basic chunking instead of advanced chunking**
+
+```bash
+python main.py --basic-chunking
+```
+
+7. **Combine multiple options**
+
+```bash
+python main.py --sources mcp --db-type pgvector --full --basic-chunking
+```
+
 ## Pipeline Steps
 
 ### 1. Crawling
@@ -63,7 +93,11 @@ python main.py --steps crawl
 This step:
 - Retrieves URLs from sitemaps or predefined lists
 - Fetches content using Playwright for JavaScript-rendered pages
+- Tracks document changes for incremental updates
+- Skips unchanged documents when in incremental mode
 - Saves the raw content as markdown files
+
+By default, DocuCrawler uses incremental crawling, which only processes documents that have changed since the last run. This saves time and resources, especially for large documentation sets. You can force a full crawl with the `--full` flag.
 
 ### 2. Preprocessing
 
@@ -89,9 +123,12 @@ python main.py --steps embed
 
 This step:
 - Chunks content into appropriate sizes for the embedding model
+- Uses advanced chunking strategies that respect document structure (sections, paragraphs)
 - Generates embeddings using the configured API
 - Handles large documents through intelligent chunking
 - Saves embeddings as JSON files
+
+DocuCrawler uses advanced chunking by default, which creates chunks that respect document structure for better semantic coherence. This results in more meaningful search results. You can switch to basic chunking with the `--basic-chunking` flag if needed.
 
 ### 4. Vector Database Integration
 
@@ -105,7 +142,10 @@ This step:
 - Connects to the specified vector database
 - Creates collections/indices as needed
 - Stores document content and embeddings
+- Handles chunked documents intelligently
 - Enables semantic search capabilities
+
+When using advanced chunking, the system stores each chunk as a separate document in the vector database, but maintains the relationship between chunks and their parent documents. This allows for more precise search results while still providing context.
 
 ## Semantic Search
 
@@ -121,6 +161,7 @@ python examples/vector_search.py "your search query" --collection mcp --db-type 
 - `--collection`: The collection to search in (default: mcp)
 - `--db-type`: The vector database to use (default: pgvector)
 - `--limit`: Maximum number of results to return (default: 5)
+- `--no-group`: Do not group chunks from the same document (show individual chunks)
 
 ### Examples
 
@@ -141,6 +182,14 @@ python examples/vector_search.py "RAG implementation" --collection langchain --d
 ```bash
 python examples/vector_search.py "vector database integration" --collection docling --db-type weaviate --limit 10
 ```
+
+4. **Show individual chunks instead of grouped results**
+
+```bash
+python examples/vector_search.py "MCP architecture" --collection mcp --no-group
+```
+
+When using advanced chunking, search results are grouped by default, showing the most relevant chunks from each document. If you want to see individual chunks as separate results, use the `--no-group` flag.
 
 ## Advanced Usage
 

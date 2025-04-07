@@ -5,6 +5,8 @@ DocuCrawler is an intelligent, extensible documentation aggregation system that 
 ## Features
 
 - Automated collection and processing of documentation across multiple sources
+- Incremental updates that only process changed documents to save time and resources
+- Advanced content chunking for better semantic coherence in search results
 - Structured output in markdown/JSON format for easy consumption by downstream systems
 - Integration with embedding models for semantic search capabilities
 - Vector database integration for efficient semantic search (PGVector, Elasticsearch, Weaviate)
@@ -91,8 +93,14 @@ python main.py --sources langchain mcp
 # Use a specific vector database
 python main.py --db-type pgvector
 
+# Force full crawling (disable incremental updates)
+python main.py --full
+
+# Use basic chunking instead of advanced chunking
+python main.py --basic-chunking
+
 # Combine options
-python main.py --steps crawl preprocess embed --sources mcp --db-type elasticsearch
+python main.py --steps crawl preprocess embed --sources mcp --db-type elasticsearch --full
 ```
 
 ### Semantic Search
@@ -100,6 +108,12 @@ python main.py --steps crawl preprocess embed --sources mcp --db-type elasticsea
 ```bash
 # Search for documents related to your query
 python examples/vector_search.py "your search query" --collection mcp --db-type pgvector
+
+# Limit the number of results
+python examples/vector_search.py "your search query" --collection mcp --limit 3
+
+# Show individual chunks instead of grouped results
+python examples/vector_search.py "your search query" --collection mcp --no-group
 ```
 
 For more detailed usage instructions, see the [Usage Guide](documentation/guides/USAGE.md).
@@ -115,10 +129,12 @@ DocuCrawler/
 │   │   └── connectors.py         # Source-specific connectors
 │   ├── processors/               # Document processing modules
 │   │   ├── base.py               # Base processor interface
-│   │   └── markdown_processor.py # Markdown processor implementation
+│   │   ├── markdown_processor.py # Markdown processor implementation
+│   │   └── advanced_chunker.py   # Advanced content chunking
 │   ├── embedders/                # Embedding generation modules
 │   │   ├── base.py               # Base embedder interface
-│   │   └── granite_embedder.py   # Granite embedder implementation
+│   │   ├── granite_embedder.py   # Granite embedder implementation
+│   │   └── enhanced/             # Enhanced embedders with advanced chunking
 │   ├── vectordb/                 # Vector database modules
 │   │   ├── base.py               # Base vector database interface
 │   │   ├── pgvector_db.py        # PGVector implementation
@@ -127,11 +143,13 @@ DocuCrawler/
 │   │   ├── factory.py            # Vector database factory
 │   │   └── integration.py        # Integration with embedding pipeline
 │   └── utils/                    # Utility functions
-│       └── common.py             # Common utility functions
+│       ├── common.py             # Common utility functions
+│       └── document_tracker.py   # Document change tracking for incremental updates
 ├── data/                         # Data storage directory
 │   ├── crawled/                  # Raw crawled content
 │   ├── processed/                # Processed content
-│   └── embeddings/               # Generated embeddings
+│   ├── embeddings/               # Generated embeddings
+│   └── metadata/                 # Document metadata for tracking changes
 ├── documentation/                # Project documentation
 ├── examples/                     # Example scripts
 ├── main.py                       # Main entry point
